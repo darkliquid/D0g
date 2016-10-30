@@ -1,0 +1,31 @@
+hash: 4d5f83a2223c237ed674e4ab8227f6fe13699b4a26ef762b863acd9bfb03bc97
+updated: 2016-10-30T11:09:19.026685606Z
+imports:
+- name: github.com/bwmarrin/discordgo
+  version: 11fa9dc906c531a85cd969b7b6b77c2f452a61b3
+- name: github.com/darkliquid/roll
+  version: b9abbedba794b22e964ae98a0211aa311a957f0c
+- name: github.com/gorilla/websocket
+  version: 2aff870ef83507abb46472eae82449f7a4c464c5
+- name: github.com/hashicorp/hcl
+  version: 8fa153c5b4e9d1ccecda7075821ffc7c1f6d912b
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/scanner
+  - hcl/strconv
+  - hcl/token
+  - json/parser
+  - json/scanner
+  - json/token
+- name: github.com/paked/configure
+  version: 9da232898a2e2ab136d81bb45554053f5b42fed4
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: golang.org/x/crypto
+  version: b2fa06b6af4b7c9bfeb8569ab7b17f04550717bf
+  subpackages:
+  - nacl/secretbox
+  - poly1305
+  - salsa20/salsa
+testImports: []

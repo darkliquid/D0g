@@ -1,0 +1,8 @@
+package: github.com/darkliquid/D0g
+import:
+- package: github.com/bwmarrin/discordgo
+  version: ~0.13.0
+- package: github.com/darkliquid/roll
+- package: github.com/paked/configure
+- package: github.com/pkg/errors
+  version: ~0.8.0
