@@ -1,10 +1,10 @@
 hash: 4d5f83a2223c237ed674e4ab8227f6fe13699b4a26ef762b863acd9bfb03bc97
-updated: 2016-10-30T21:44:57.4029565Z
+updated: 2016-10-31T14:00:34.234156828Z
 imports:
 - name: github.com/bwmarrin/discordgo
   version: 11fa9dc906c531a85cd969b7b6b77c2f452a61b3
 - name: github.com/darkliquid/roll
-  version: 282a3e80e60f2aa2f97d1e1a231a603b3b5b858e
+  version: bae033a781ef32d05839380bfd685a3c5aa630da
 - name: github.com/gorilla/websocket
   version: 2aff870ef83507abb46472eae82449f7a4c464c5
 - name: github.com/hashicorp/hcl

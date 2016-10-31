@@ -22,6 +22,8 @@ func commandHandler(session *discordgo.Session, message *discordgo.MessageCreate
 			pingHandler(session, message, args...)
 		case "roll":
 			rollHandler(session, message, args...)
+		case "uptime":
+			uptimeHandler(session, message, args...)
 		}
 	}
 }
