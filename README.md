@@ -1,4 +1,4 @@
-# D0g
+# D0g [![Go Report Card](https://goreportcard.com/badge/github.com/darkliquid/D0g)](https://goreportcard.com/report/github.com/darkliquid/D0g) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/darkliquid/D0g/blob/master/LICENSE) [![GoDoc](https://godoc.org/github.com/darkliquid/D0g?status.svg)](https://godoc.org/github.com/darkliquid/D0g) [![Build Status](https://travis-ci.org/darkliquid/D0g.svg?branch=master)](https://travis-ci.org/darkliquid/D0g)
 
 A discord bot written in Go for City17.
 
