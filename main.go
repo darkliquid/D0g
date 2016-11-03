@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/paked/configure"
 	werr "github.com/pkg/errors"
@@ -14,7 +16,9 @@ var (
 	conf   = configure.New()
 	token  = conf.String("token", "", "Discord bot token")
 	cmdpfx = conf.String("command-prefix", "!", "The prefix symbol used to indicate commands")
+	dbfile = conf.String("dbfile", "D0g.db", "The file that stores persistent info")
 	me     *discordgo.User
+	db     *bolt.DB
 )
 
 func main() {
@@ -31,8 +35,12 @@ func main() {
 	}
 	conf.Parse()
 
-	if token == nil {
+	if token == nil || *token == "" {
 		log.Fatalln("A token MUST be set to authenticate")
+	}
+
+	if dbfile == nil || *dbfile == "" {
+		log.Fatalln("A dbfile MUST be specified")
 	}
 
 	log.Println("Creating session...")
@@ -58,7 +66,12 @@ func main() {
 		log.Fatalln("error obtaining account details,", err)
 	}
 
-	// Store the account ID for later use.
+	// Initialise boltdb
+	db, err = bolt.Open(*dbfile, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	// Block forever
 	log.Println("Running...")
