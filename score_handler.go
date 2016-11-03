@@ -92,7 +92,14 @@ func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate
 
 		user = message.Mentions[0]
 	}
-	scores := getKeyScoreList([]byte("scores:" + user.ID))
+
+	channel, err := session.Channel(message.ChannelID)
+	if err != nil {
+		log.Print(err)
+		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: I can't get the scores due to an error. :sob:")
+		return
+	}
+	scores := getKeyScoreList([]byte("guild:" + channel.GuildID + ":scores:" + user.ID))
 
 	if len(scores) == 0 {
 		_, _ = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: %v has not been rated", user.Username))
@@ -114,7 +121,14 @@ func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate
 
 // retrieveTopScores lists the users by total score
 func retrieveTopScores(session *discordgo.Session, message *discordgo.MessageCreate) {
-	scores := getKeyScoreList([]byte("scorestotals"))
+	channel, err := session.Channel(message.ChannelID)
+	if err != nil {
+		log.Print(err)
+		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: I can't get the top scores due to an error. :sob:")
+		return
+	}
+
+	scores := getKeyScoreList([]byte("guild:" + channel.GuildID + ":scorestotals"))
 
 	if len(scores) == 0 {
 		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: No-one has been rated")
@@ -153,9 +167,14 @@ func adjustScore(adjust int64, session *discordgo.Session, message *discordgo.Me
 		return fmt.Errorf("invalid arguments: %#v (%#v)", parts, message.Mentions[0].ID)
 	}
 
-	bucketname := []byte("scores:" + message.Mentions[0].ID)
+	channel, err := session.Channel(message.ChannelID)
+	if err != nil {
+		return err
+	}
+
+	bucketname := []byte("guild:" + channel.GuildID + ":scores:" + message.Mentions[0].ID)
 	key := []byte(strings.TrimSpace(parts[2]))
-	totalsbucketname := []byte("scorestotals")
+	totalsbucketname := []byte("guild:" + channel.GuildID + ":scorestotals")
 	totalskey := []byte(message.Mentions[0].ID)
 
 	return db.Update(func(tx *bolt.Tx) error {
