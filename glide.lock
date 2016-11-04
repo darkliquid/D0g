@@ -1,5 +1,5 @@
 hash: b274cc4a4ddcd06095dc101adc1a23c89a99497a88d7093704ea56a0f0abc416
-updated: 2016-11-03T18:31:02.034908499Z
+updated: 2016-11-04T14:06:00.678983486Z
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -10,7 +10,7 @@ imports:
 - name: github.com/gorilla/websocket
   version: 2aff870ef83507abb46472eae82449f7a4c464c5
 - name: github.com/hashicorp/hcl
-  version: 6e968a3fcdcbab092f5307fd0d85479d5af1e4dc
+  version: f74cf8281543a0797d7b4ab7d88e76e7ba125308
   subpackages:
   - hcl/ast
   - hcl/parser

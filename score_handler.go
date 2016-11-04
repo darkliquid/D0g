@@ -85,8 +85,9 @@ func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate
 	user := message.Author
 	if len(args) == 1 {
 		// If the first mention isn't the first arg, its an invalid command
-		if args[0] != fmt.Sprintf("<@%s>", message.Mentions[0].ID) {
-			_, _ = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: no idea who %v is", args[0]))
+		uid := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(args[0], "<@"), "!"), ">")
+		if uid != message.Mentions[0].ID {
+			_, _ = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: no idea who %v is", uid))
 			return
 		}
 
@@ -163,7 +164,8 @@ func adjustScore(adjust int64, session *discordgo.Session, message *discordgo.Me
 	}
 
 	// If the first mention isn't the first arg, its an invalid command
-	if parts[0] != fmt.Sprintf("<@%s>", message.Mentions[0].ID) || parts[1] != "for" {
+	user := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(parts[0], "<@"), "!"), ">")
+	if user != message.Mentions[0].ID || parts[1] != "for" {
 		return fmt.Errorf("invalid arguments: %#v (%#v)", parts, message.Mentions[0].ID)
 	}
 
