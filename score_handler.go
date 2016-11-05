@@ -12,6 +12,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// ErrSelfRating is returned when trying to rate yourself
+var ErrSelfRating = errors.New("self-rating is not allowed")
+
 // Scores are kept in the `scores:{uid}` bucket, with the key being `{reason}`
 // where reason is the string representing the reason for a score and uid is
 // the uid of the user with the scores.
@@ -32,6 +35,8 @@ func scoreHandler(cmd string, session *discordgo.Session, message *discordgo.Mes
 		err = adjustScore(adjust, session, message, args...)
 		if err == nil {
 			_, err = session.ChannelMessageSend(message.ChannelID, ":trophy: score logged! "+adjSym)
+		} else if err == ErrSelfRating {
+			_, err = session.ChannelMessageSend(message.ChannelID, ":poop: You can't rate yourself, scumbag!")
 		} else {
 			log.Print(err)
 			_, err = session.ChannelMessageSend(message.ChannelID, ":trophy: I couldn't log this score due to an error. :sob:")
@@ -169,6 +174,11 @@ func adjustScore(adjust int64, session *discordgo.Session, message *discordgo.Me
 	user := getUIDFromMention(parts[0])
 	if user != message.Mentions[0].ID || parts[1] != "for" {
 		return fmt.Errorf("invalid arguments: %#v (%#v)", parts, message.Mentions[0].ID)
+	}
+
+	// No self-rating
+	if user == message.Author.ID {
+		return ErrSelfRating
 	}
 
 	guildid, err := getGuildIDFromMessage(session, message)
