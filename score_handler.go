@@ -19,23 +19,29 @@ import (
 func scoreHandler(cmd string, session *discordgo.Session, message *discordgo.MessageCreate, args ...string) {
 	adjust := int64(1)
 	adjSym := ":+1:"
+	var err error
+
 	switch cmd {
 	case "score":
-		retrieveScores(session, message, args...)
+		err = retrieveScores(session, message, args...)
 	case "-":
 		adjust = -1
 		adjSym = ":-1:"
 		fallthrough
 	case "+":
-		if err := adjustScore(adjust, session, message, args...); err != nil {
+		err = adjustScore(adjust, session, message, args...)
+		if err == nil {
+			_, err = session.ChannelMessageSend(message.ChannelID, ":trophy: score logged! "+adjSym)
+		} else {
 			log.Print(err)
-			_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: I couldn't log this score due to an error. :sob:")
-			return
+			_, err = session.ChannelMessageSend(message.ChannelID, ":trophy: I couldn't log this score due to an error. :sob:")
 		}
-
-		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: score logged! "+adjSym)
 	case "top":
-		retrieveTopScores(session, message)
+		err = retrieveTopScores(session, message)
+	}
+
+	if err != nil {
+		log.Print(err)
 	}
 }
 
@@ -81,30 +87,28 @@ func getKeyScoreList(bucketname []byte) (scores KeyScoreList) {
 }
 
 // retrieveScores gets all the scores for a given user
-func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate, args ...string) {
+func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate, args ...string) error {
 	user := message.Author
 	if len(args) == 1 {
 		// If the first mention isn't the first arg, its an invalid command
-		uid := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(args[0], "<@"), "!"), ">")
+		uid := getUIDFromMention(args[0])
 		if uid != message.Mentions[0].ID {
-			_, _ = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: no idea who %v is", uid))
-			return
+			_, err := session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: no idea who %v is", uid))
+			return err
 		}
 
 		user = message.Mentions[0]
 	}
 
-	channel, err := session.Channel(message.ChannelID)
+	guildid, err := getGuildIDFromMessage(session, message)
 	if err != nil {
-		log.Print(err)
-		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: I can't get the scores due to an error. :sob:")
-		return
+		return err
 	}
-	scores := getKeyScoreList([]byte("guild:" + channel.GuildID + ":scores:" + user.ID))
+	scores := getKeyScoreList([]byte("guild:" + guildid + ":scores:" + user.ID))
 
 	if len(scores) == 0 {
-		_, _ = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: %v has not been rated", user.Username))
-		return
+		_, err = session.ChannelMessageSend(message.ChannelID, fmt.Sprintf(":trophy: %v has not been rated", user.Username))
+		return err
 	}
 
 	output := make([]string, len(scores)+1)
@@ -116,24 +120,22 @@ func retrieveScores(session *discordgo.Session, message *discordgo.MessageCreate
 
 	output[0] = fmt.Sprintf(":trophy: %v has been rated %v for the following:\n", user.Username, total)
 
-	_, _ = session.ChannelMessageSend(message.ChannelID, strings.Join(output, "\n"))
-	return
+	_, err = session.ChannelMessageSend(message.ChannelID, strings.Join(output, "\n"))
+	return err
 }
 
 // retrieveTopScores lists the users by total score
-func retrieveTopScores(session *discordgo.Session, message *discordgo.MessageCreate) {
-	channel, err := session.Channel(message.ChannelID)
+func retrieveTopScores(session *discordgo.Session, message *discordgo.MessageCreate) error {
+	guildid, err := getGuildIDFromMessage(session, message)
 	if err != nil {
-		log.Print(err)
-		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: I can't get the top scores due to an error. :sob:")
-		return
+		return err
 	}
 
-	scores := getKeyScoreList([]byte("guild:" + channel.GuildID + ":scorestotals"))
+	scores := getKeyScoreList([]byte("guild:" + guildid + ":scorestotals"))
 
 	if len(scores) == 0 {
-		_, _ = session.ChannelMessageSend(message.ChannelID, ":trophy: No-one has been rated")
-		return
+		_, err = session.ChannelMessageSend(message.ChannelID, ":trophy: No-one has been rated")
+		return err
 	}
 
 	output := make([]string, len(scores)+1)
@@ -147,8 +149,8 @@ func retrieveTopScores(session *discordgo.Session, message *discordgo.MessageCre
 		output[1+i] = fmt.Sprintf("**%v** has a score of **%v**", score.Key, score.Score)
 	}
 
-	_, _ = session.ChannelMessageSend(message.ChannelID, strings.Join(output, "\n"))
-	return
+	_, err = session.ChannelMessageSend(message.ChannelID, strings.Join(output, "\n"))
+	return err
 }
 
 func adjustScore(adjust int64, session *discordgo.Session, message *discordgo.MessageCreate, args ...string) error {
@@ -164,19 +166,19 @@ func adjustScore(adjust int64, session *discordgo.Session, message *discordgo.Me
 	}
 
 	// If the first mention isn't the first arg, its an invalid command
-	user := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(parts[0], "<@"), "!"), ">")
+	user := getUIDFromMention(parts[0])
 	if user != message.Mentions[0].ID || parts[1] != "for" {
 		return fmt.Errorf("invalid arguments: %#v (%#v)", parts, message.Mentions[0].ID)
 	}
 
-	channel, err := session.Channel(message.ChannelID)
+	guildid, err := getGuildIDFromMessage(session, message)
 	if err != nil {
 		return err
 	}
 
-	bucketname := []byte("guild:" + channel.GuildID + ":scores:" + message.Mentions[0].ID)
-	key := []byte(strings.TrimSpace(parts[2]))
-	totalsbucketname := []byte("guild:" + channel.GuildID + ":scorestotals")
+	bucketname := []byte("guild:" + guildid + ":scores:" + message.Mentions[0].ID)
+	key := []byte(cleanDiscordString(parts[2]))
+	totalsbucketname := []byte("guild:" + guildid + ":scorestotals")
 	totalskey := []byte(message.Mentions[0].ID)
 
 	return db.Update(func(tx *bolt.Tx) error {
