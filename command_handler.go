@@ -24,6 +24,8 @@ func commandHandler(session *discordgo.Session, message *discordgo.MessageCreate
 			rollHandler(session, message, args...)
 		case "uptime":
 			uptimeHandler(session, message, args...)
+		case "quote":
+			quoteHandler(session, message, args...)
 		case "+", "-", "score", "top":
 			scoreHandler(command, session, message, args...)
 		}
