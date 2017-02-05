@@ -146,8 +146,8 @@ func retrieveTopScores(session *discordgo.Session, message *discordgo.MessageCre
 	output := make([]string, len(scores)+1)
 	output[0] = ":trophy: Everyone has been rated for the following:"
 	for i, score := range scores {
-		user, err := session.User(score.Key)
-		if err == nil {
+		user, uerr := session.User(score.Key)
+		if uerr == nil {
 			score.Key = user.Username
 		}
 

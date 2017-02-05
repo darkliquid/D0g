@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
 	"log"
+	"math/rand"
 	"strings"
+	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -14,9 +20,8 @@ const (
 	cmdList = "list"
 )
 
-// Quotes are kept in the `quotes:{uid}` bucket, with the key being `{reason}`
-// where reason is the string representing the reason for a score and uid is
-// the uid of the user with the scores.
+// Quotes are kept in the `quotes:{uid}` bucket, with the key being `{id}` - a
+// new id
 
 func quoteHandler(session *discordgo.Session, message *discordgo.MessageCreate, args ...string) {
 	var err error
@@ -27,20 +32,21 @@ func quoteHandler(session *discordgo.Session, message *discordgo.MessageCreate, 
 	// * [verb] [args]
 	// * [verb]
 	// * nothing
-
 	cmd := cmdGet
-	var uid string
-	user := message.Author
 	if len(args) > 0 {
+		args = strings.Split(args[0], " ")
 		cmd, args = args[0], args[1:]
 	}
+
+	var uid string
+	user := message.Author
 
 	switch cmd {
 	case cmdAdd, cmdDel, cmdGet, cmdList:
 		// The next argument must be a user (or nothing)
 		if len(args) > 0 {
 			uid = getUIDFromMention(args[0])
-			if uid == message.Mentions[0].ID {
+			if len(message.Mentions) != 0 && uid == message.Mentions[0].ID {
 				user = message.Mentions[0]
 				args = args[1:]
 			}
@@ -48,7 +54,7 @@ func quoteHandler(session *discordgo.Session, message *discordgo.MessageCreate, 
 	default:
 		// In the default case, the only valid argument is a user (get is implied)
 		uid := getUIDFromMention(cmd)
-		if uid != message.Mentions[0].ID {
+		if len(message.Mentions) == 0 || uid != message.Mentions[0].ID {
 			log.Printf("invalid quote command %q", cmd)
 			return
 		}
@@ -73,18 +79,105 @@ func quoteHandler(session *discordgo.Session, message *discordgo.MessageCreate, 
 	}
 }
 
+func quotesBucket(s *discordgo.Session, m *discordgo.MessageCreate, u *discordgo.User) ([]byte, error) {
+	guildid, err := getGuildIDFromMessage(s, m)
+	if err != nil {
+		return nil, err
+	}
+	return []byte("guild:" + guildid + ":quotes:" + u.ID), nil
+}
+
 func addUserQuote(s *discordgo.Session, m *discordgo.MessageCreate, u *discordgo.User, quote string) error {
-	return nil
+	bucket, err := quotesBucket(s, m, u)
+	if err != nil {
+		return err
+	}
+
+	return db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(bucket)
+		if err != nil {
+			return err
+		}
+
+		id, _ := b.NextSequence()
+
+		// Persist bytes to users bucket.
+		log.Printf("putting %q into %v--%v", quote, string(bucket), id)
+		return b.Put(itob(int(id)), []byte(quote))
+	})
 }
 
 func delUserQuote(s *discordgo.Session, m *discordgo.MessageCreate, u *discordgo.User, quoteID string) error {
-	return nil
+	bucket, err := quotesBucket(s, m, u)
+	if err != nil {
+		return err
+	}
+
+	return db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(bucket)
+		if err != nil {
+			return err
+		}
+
+		// Delete entry
+		log.Printf("delete %v--%v", string(bucket), quoteID)
+		return b.Delete([]byte(quoteID))
+	})
 }
 
 func listUserQuotes(s *discordgo.Session, m *discordgo.MessageCreate, u *discordgo.User) error {
-	return nil
+	bucket, err := quotesBucket(s, m, u)
+	if err != nil {
+		return err
+	}
+
+	return db.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b, err := tx.CreateBucketIfNotExists(bucket)
+		if err != nil {
+			return err
+		}
+
+		c := b.Cursor()
+
+		quotes := fmt.Sprintf(":speech_balloon: All quotes by %v\n", u.Username)
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			i, _ := binary.ReadVarint(bytes.NewBuffer(k))
+			quotes += fmt.Sprintf("  %v: %q\n", i, string(v))
+		}
+
+		log.Printf("got quotes: %v", quotes)
+		_, err = s.ChannelMessageSend(m.ChannelID, quotes)
+
+		return err
+	})
 }
 
 func getUserQuote(s *discordgo.Session, m *discordgo.MessageCreate, u *discordgo.User) error {
-	return nil
+	bucket, err := quotesBucket(s, m, u)
+	if err != nil {
+		return err
+	}
+
+	return db.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b, err := tx.CreateBucketIfNotExists(bucket)
+		if err != nil {
+			return err
+		}
+
+		c := b.Cursor()
+
+		var quotes []string
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			quotes = append(quotes, string(v))
+		}
+
+		source := rand.NewSource(time.Now().Unix())
+		r := rand.New(source)
+		_, err = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf(":speech_balloon: %v said %q", u.Username, quotes[r.Intn(len(quotes))]))
+		log.Printf("got an entry from quotes %v", quotes)
+
+		return err
+	})
 }
